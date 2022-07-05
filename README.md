@@ -5,7 +5,7 @@
 A simple robot drive system that includes skid steering joystick teleoperation, control of a panning two servos to look around the robot, and Arduino firmware.
 
 ##
-![controller](https://raw.githubusercontent.com/QuantumRoboticsURC/simple_drive/main/images/drive_system_PS5_Controller.png)
+![controller](https://raw.githubusercontent.com/QuantumRoboticsURC/simple_drive/main/images/simple_drive_controller.png)
 
 ## Quick Start
 
