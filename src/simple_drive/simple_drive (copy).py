@@ -17,7 +17,7 @@ cmd_byte_map = {
 }
 
 def main():
-	rospy.init_node("simple_drive")
+	rospy.init_node("simple_drive")   
 	baudrate = rospy.get_param('~baudrate', 9600)
 	Serial = serial.Serial(baudrate=baudrate)
 	Serial.port = rospy.get_param("~serial_dev")

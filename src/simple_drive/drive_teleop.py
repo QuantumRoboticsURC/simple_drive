@@ -4,7 +4,7 @@ import rospy
 import subprocess
 
 from sensor_msgs.msg import Joy
-from std_msgs.msg import Float32
+from std_msgs.msg import Int32
 from geometry_msgs.msg import Twist
 from actionlib_msgs.msg import GoalID
 
@@ -12,23 +12,23 @@ class DriveTeleop:
     def __init__(self):
         self.speed_setting = 2 # default to medium speed
 
-        #upper servo
-        self.servo_pan_speed_u = rospy.get_param('~servo_pan_speed_u', 20) # degrees of change per button press
-        self.servo_pan_max_u = rospy.get_param('~servo_pan_max_u', 160) # max angle of servo rotation
-        self.servo_pan_min_u = rospy.get_param('~servo_pan_min_u', 0) # min angle of servo rotation
-        self.servo_position_u = self.servo_pan_max_u/2 # center servo position
+        #antenna servo
+        self.servo_pan_max = rospy.get_param('~servo_pan_max', 90) # max angle of servo rotation horizontal
+        self.servo_pan_min = rospy.get_param('~servo_pan_min', 0) # min angle of servo rotation vertical
+        self.servo_position = self.servo_pan_min # initial servo position
 
- 	    #lower servo
-        self.servo_pan_speed_l = rospy.get_param('~servo_pan_speed_l', 20) # degrees of change per button press
-        self.servo_pan_max_l = rospy.get_param('~servo_pan_max_l', 160) # max angle of servo rotation
-        self.servo_pan_min_l = rospy.get_param('~servo_pan_min_l', 0) # min angle of servo rotation
-        self.servo_position_l = self.servo_pan_max_l/2 # center servo position
+        #status colors
+        self.blue_status = rospy.get_param('~blue_status', 1) # Blue: Teleoperation (Manually driving)
+        self.red_status = rospy.get_param('~red_status', 2) # Red: Autonomous operation
+        self.flashing_status = rospy.get_param('~flashing_status', 3) # Flashing Green: Successful arrival at a post or passage through a gate.
+        self.status_color = self.blue_status # initial status color
 
-        #publisher
-        self.cmd_vel_pub = rospy.Publisher("teleop/cmd_vel", Twist, queue_size=1)
+
+        # publisher
+        self.cmd_vel_pub = rospy.Publisher("cmd_vel", Twist, queue_size=1)
         self.goal_cancel_pub = rospy.Publisher("move_base/cancel", GoalID, queue_size=1)
-        self.servo_pub_u = rospy.Publisher("servo_pos_u", Float32, queue_size=1)
-        self.servo_pub_l = rospy.Publisher("servo_pos_l", Float32, queue_size=1)
+        self.antenna_pub = rospy.Publisher("antenna_pos", Int32, queue_size=1)
+        self.status_pub = rospy.Publisher("status_led", Int32, queue_size=1)
         self.joy_sub = rospy.Subscriber("joy", Joy, self.on_joy)
 
     def on_joy(self, data):
@@ -41,12 +41,12 @@ class DriveTeleop:
             self.speed_setting = 3
 
         # Drive sticks
-        left_speed = -data.axes[1] / self.speed_setting # left stick
-        right_speed = -data.axes[5] / self.speed_setting # right stick
+        left_speed = data.axes[1] / self.speed_setting # left stick
+        right_speed = data.axes[5] / self.speed_setting # right stick
 
         # Convert skid steering speeds to twist speeds
         linear_vel  = (left_speed + right_speed) / 2.0 # (m/s)
-        angular_vel  = (right_speed - left_speed) / 2.0 # (rad/s)
+        angular_vel  = (left_speed - right_speed) / 2.0 # (rad/s)
 
         # Publish Twist
         twist = Twist()
@@ -54,28 +54,25 @@ class DriveTeleop:
         twist.angular.z = angular_vel
         self.cmd_vel_pub.publish(twist)
 
-        # UPPER Servo camera control
-        if data.buttons[1]: # up camera (X Button)
-            if self.servo_position_u > self.servo_pan_min_u:
-                self.servo_position_u -= self.servo_pan_speed_u
-        if data.buttons[3]: # down camera (Triangle button)
-            if self.servo_position_u < self.servo_pan_max_u:
-                self.servo_position_u += self.servo_pan_speed_u
-        if data.buttons[2]: # center servo position (Circle button)
-            self.servo_position_u = self.servo_pan_max_u/2
-        self.servo_pub_u.publish(self.servo_position_u)
-
-        # LOWER Servo camera control
-        if data.buttons[4]: # pan leftward (L1)
-            if self.servo_position_l > self.servo_pan_min_l:
-                self.servo_position_l -= self.servo_pan_speed_l
-        if data.buttons[5]: # pan rightward (R1)
-            if self.servo_position_l < self.servo_pan_max_l:
-                self.servo_position_l += self.servo_pan_speed_l
-        if data.buttons[0]: # center servo position (Square button)
-            self.servo_position_l = self.servo_pan_max_l/2
-        self.servo_pub_l.publish(self.servo_position_l)
-
+        # Antenna servo control
+        if data.buttons[4]: # security button (L1 Button)
+            if data.buttons[3]: # up antennas (Triangle button)
+                self.servo_position = self.servo_pan_min
+            if data.buttons[1]: # down antennas (X Button)
+                self.servo_position = self.servo_pan_max
+            self.antenna_pub.publish(self.servo_position)
+        
+        # Status led control
+        if data.buttons[5]: # security button (R1 Button)
+            if data.buttons[3]: # blue color (Triangle button)
+                self.status_color = self.blue_status
+                self.status_pub.publish(self.status_color)
+            if data.buttons[2]: # red color (Circle button)
+                self.status_color = self.red_status
+                self.status_pub.publish(self.status_color)
+            if data.buttons[1]: # flashing green (X button)
+                self.status_color = self.flashing_status
+                self.status_pub.publish(self.status_color)
 
 
         # Cancel move base goal
