@@ -1,0 +1,5 @@
+<launch>
+
+  	<node name="simple_drive" pkg="simple_drive" type="simple_drive.py" output="screen"/>
+
+</launch>
