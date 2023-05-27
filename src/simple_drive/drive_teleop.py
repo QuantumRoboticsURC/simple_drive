@@ -42,7 +42,7 @@ class DriveTeleop:
 
         # Drive sticks
         left_speed = data.axes[1] / self.speed_setting # left stick
-        right_speed = data.axes[5] / self.speed_setting # right stick
+        right_speed = data.axes[4] / self.speed_setting # right stick
 
         # Convert skid steering speeds to twist speeds
         linear_vel  = (left_speed + right_speed) / 2.0 # (m/s)
